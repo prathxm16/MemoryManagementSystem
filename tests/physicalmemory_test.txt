@@ -1,0 +1,114 @@
+[RAM] Initialized: 4096 bytes.
+[L1] Init: 1024B, Block: 32B, Assoc: 1 (Latency: 1 cycles)
+[L2] Init: 4096B, Block: 32B, Assoc: 2 (Latency: 10 cycles)
+
+
+$ init 1024
+[RAM] Initialized: 1024 bytes.
+
+
+$ malloc 101
+Allocated block id=1 at address=0x0
+$ malloc 207
+Allocated block id=2 at address=0x68
+$ malloc 160
+Allocated block id=3 at address=0x138
+$ malloc 98
+Allocated block id=4 at address=0x1D8
+
+
+$ dump
+--- Memory Dump ---
+[0x0000 - 0x0067] USED (id=1, size=104, pad=3)
+[0x0068 - 0x0137] USED (id=2, size=208, pad=1)
+[0x0138 - 0x01D7] USED (id=3, size=160, pad=0)
+[0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
+[0x023C - 0x03FF] FREE (452 bytes)
+-------------------
+
+$ stats
+Total memory:           1024
+Used memory:            572
+Free memory:            452
+Internal fragmentation: 6 bytes
+External fragmentation: 0.0%
+
+
+$ free 2
+Block 2 freed
+
+$ dump 
+--- Memory Dump ---
+[0x0000 - 0x0067] USED (id=1, size=104, pad=3)
+[0x0068 - 0x0137] FREE (208 bytes)
+[0x0138 - 0x01D7] USED (id=3, size=160, pad=0)
+[0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
+[0x023C - 0x03FF] FREE (452 bytes)
+-------------------
+
+
+$ free 3
+Block 3 freed (merged prev)
+
+
+$ dump
+--- Memory Dump ---
+[0x0000 - 0x0067] USED (id=1, size=104, pad=3)
+[0x0068 - 0x01D7] FREE (368 bytes)
+[0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
+[0x023C - 0x03FF] FREE (452 bytes)
+-------------------
+
+
+$ set allocator first_fit
+Allocator set to: First Fit
+$ malloc 200
+Allocated block id=5 at address=0x68
+
+$ dump
+--- Memory Dump ---
+[0x0000 - 0x0067] USED (id=1, size=104, pad=3)
+[0x0068 - 0x012F] USED (id=5, size=200, pad=0)
+[0x0130 - 0x01D7] FREE (168 bytes)
+[0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
+[0x023C - 0x03FF] FREE (452 bytes)
+-------------------
+
+$ set allocator best_fit
+Allocator set to: Best Fit
+$ malloc 68
+Allocated block id=6 at address=0x130
+
+$ dump
+--- Memory Dump ---
+[0x0000 - 0x0067] USED (id=1, size=104, pad=3)
+[0x0068 - 0x012F] USED (id=5, size=200, pad=0)
+[0x0130 - 0x0173] USED (id=6, size=68, pad=0)
+[0x0174 - 0x01D7] FREE (100 bytes)
+[0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
+[0x023C - 0x03FF] FREE (452 bytes)
+-------------------
+
+$ set allocator worst_fit
+Allocator set to: Worst Fit
+$ malloc 100
+Allocated block id=7 at address=0x23C
+
+$ dump
+--- Memory Dump ---
+[0x0000 - 0x0067] USED (id=1, size=104, pad=3)
+[0x0068 - 0x012F] USED (id=5, size=200, pad=0)
+[0x0130 - 0x0173] USED (id=6, size=68, pad=0)
+[0x0174 - 0x01D7] FREE (100 bytes)
+[0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
+[0x023C - 0x029F] USED (id=7, size=100, pad=0)
+[0x02A0 - 0x03FF] FREE (352 bytes)
+-------------------
+
+$ stats
+Total memory:           1024
+Used memory:            572
+Free memory:            452
+Internal fragmentation: 5 bytes
+External fragmentation: 22.1%
+$ 

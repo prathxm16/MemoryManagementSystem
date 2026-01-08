@@ -33,3 +33,47 @@ A C++ simulation of a computer system's physical memory management and cache hie
 │   └── main.cpp    # CLI Driver
 ├── tests/          # Test input scripts
 └── Makefile        # Build configuration
+```
+## Supported Commands
+
+| Command | Arguments | Description |
+| :--- | :--- | :--- |
+| **Memory** | | |
+| `init` | `<size>` | Initialize physical memory with specific size. |
+| `set` | `allocator <mode>` | Set strategy: `first_fit`, `best_fit`, or `worst_fit`. |
+| `malloc` | `<size>` | Allocate memory block of size bytes. |
+| `free` | `<id>` | Free the memory block with the given ID. |
+| `dump` | | Print the current memory map (Used/Free blocks). |
+| `stats` | | Show fragmentation statistics. |
+| **Cache** | | |
+| `read` | `<hex_addr>` | Simulate a read operation at address (e.g., `read 0x1A`). |
+| `write` | `<hex_addr>` | Simulate a write operation at address. |
+| `cache_stats` | | Show Hits, Misses, and AMAT. |
+| `cache_config`| `<lvl> <sz> <blk> <assoc>` | Reconfigure L1 or L2 parameters at runtime. |
+| `exit` | | Exit the simulator. |
+
+## How to Run
+
+### Run with Test Inputs 
+To execute the simulator using the pre-defined test workload inside the tests folder paste the given command in project directory:
+
+- To compile:
+```powershell
+make
+```
+- To run with test scripts:
+
+(Physical Memory)
+```powershell
+./bin/memsim < tests/physicalmemory_test.txt
+```
+(Cache)
+```powershell
+./bin/memsim < tests/cache_test.txt
+```
+### Run manually
+To run the simulator in interactive mode
+
+```powershell
+make run
+```

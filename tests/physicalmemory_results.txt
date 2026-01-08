@@ -1,21 +1,29 @@
+// is used to add comments to explain the output and verify correctness.
+
 [RAM] Initialized: 4096 bytes.
 [L1] Init: 1024B, Block: 32B, Assoc: 1 (Latency: 1 cycles)
 [L2] Init: 4096B, Block: 32B, Assoc: 2 (Latency: 10 cycles)
 
-
 $ init 1024
 [RAM] Initialized: 1024 bytes.
 
-
 $ malloc 101
 Allocated block id=1 at address=0x0
+// Request for 101 bytes rounded up to 104 bytes for 4-byte alignment.
+// Internal fragmentation = 3 bytes (104 - 101).
+
 $ malloc 207
 Allocated block id=2 at address=0x68
+// Request for 207 bytes rounded up to 208 bytes.
+// Internal fragmentation = 1 byte.
+
 $ malloc 160
 Allocated block id=3 at address=0x138
+// 160 is already a multiple of 4. No padding needed.
+
 $ malloc 98
 Allocated block id=4 at address=0x1D8
-
+// Rounded up to 100 bytes. Internal fragmentation = 2 bytes.
 
 $ dump
 --- Memory Dump ---
@@ -25,17 +33,22 @@ $ dump
 [0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
 [0x023C - 0x03FF] FREE (452 bytes)
 -------------------
+// STATE CHECK: Memory is contiguous. Total allocated = 104+208+160+100 = 572 bytes.
+// Free memory at end = 1024 - 572 = 452 bytes.
 
 $ stats
-Total memory:           1024
-Used memory:            572
-Free memory:            452
+Total memory:            1024
+Used memory:             572
+Free memory:             452
 Internal fragmentation: 6 bytes
 External fragmentation: 0.0%
-
+// STATS CHECK: Internal frag sum: 3 (id1) + 1 (id2) + 0 (id3) + 2 (id4) = 6 bytes.
+// External frag is 0% because all free memory is in one big block at the end.
 
 $ free 2
 Block 2 freed
+// Frees the chunk [0x0068 - 0x0137] (208 bytes).
+// Creates a hole between id=1 and id=3.
 
 $ dump 
 --- Memory Dump ---
@@ -46,30 +59,33 @@ $ dump
 [0x023C - 0x03FF] FREE (452 bytes)
 -------------------
 
-
 $ free 3
 Block 3 freed (merged prev)
-
+// COALESCING CHECK: Frees id=3 (160 bytes).
+// It detects the previous block (old id=2, 208 bytes) is also free.
+// Merges them: 208 + 160 = 368 bytes.
 
 $ dump
 --- Memory Dump ---
 [0x0000 - 0x0067] USED (id=1, size=104, pad=3)
-[0x0068 - 0x01D7] FREE (368 bytes)
+[0x0068 - 0x01D7] FREE (368 bytes)   <-- Merged Hole
 [0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
 [0x023C - 0x03FF] FREE (452 bytes)
 -------------------
-
 
 $ set allocator first_fit
 Allocator set to: First Fit
 $ malloc 200
 Allocated block id=5 at address=0x68
+// FIRST FIT CHECK: Available holes: [368 bytes at 0x68] and [452 bytes at 0x23C].
+// First Fit picks the FIRST one sufficient (368 bytes).
+// It splits the 368 block -> allocates 200, leaving 168 free.
 
 $ dump
 --- Memory Dump ---
 [0x0000 - 0x0067] USED (id=1, size=104, pad=3)
 [0x0068 - 0x012F] USED (id=5, size=200, pad=0)
-[0x0130 - 0x01D7] FREE (168 bytes)
+[0x0130 - 0x01D7] FREE (168 bytes)   <-- Remainder of first hole
 [0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
 [0x023C - 0x03FF] FREE (452 bytes)
 -------------------
@@ -78,13 +94,16 @@ $ set allocator best_fit
 Allocator set to: Best Fit
 $ malloc 68
 Allocated block id=6 at address=0x130
+// BEST FIT CHECK: Available holes: [168 bytes at 0x130] and [452 bytes at 0x23C].
+// Best Fit looks for the smallest hole that fits 68 bytes.
+// 168 < 452, so it picks 0x130.
 
 $ dump
 --- Memory Dump ---
 [0x0000 - 0x0067] USED (id=1, size=104, pad=3)
 [0x0068 - 0x012F] USED (id=5, size=200, pad=0)
 [0x0130 - 0x0173] USED (id=6, size=68, pad=0)
-[0x0174 - 0x01D7] FREE (100 bytes)
+[0x0174 - 0x01D7] FREE (100 bytes)   <-- Remainder
 [0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
 [0x023C - 0x03FF] FREE (452 bytes)
 -------------------
@@ -93,13 +112,16 @@ $ set allocator worst_fit
 Allocator set to: Worst Fit
 $ malloc 100
 Allocated block id=7 at address=0x23C
+// WORST FIT CHECK: Available holes: [100 bytes at 0x174] and [452 bytes at 0x23C].
+// Request is 100 bytes. The hole at 0x174 is a PERFECT fit.
+// However, Worst Fit MUST pick the largest hole. It ignores 0x174 and picks 0x23C.
 
 $ dump
 --- Memory Dump ---
 [0x0000 - 0x0067] USED (id=1, size=104, pad=3)
 [0x0068 - 0x012F] USED (id=5, size=200, pad=0)
 [0x0130 - 0x0173] USED (id=6, size=68, pad=0)
-[0x0174 - 0x01D7] FREE (100 bytes)
+[0x0174 - 0x01D7] FREE (100 bytes)   <-- Ignored by Worst Fit
 [0x01D8 - 0x023B] USED (id=4, size=100, pad=2)
 [0x023C - 0x029F] USED (id=7, size=100, pad=0)
 [0x02A0 - 0x03FF] FREE (352 bytes)
@@ -111,4 +133,7 @@ Used memory:            572
 Free memory:            452
 Internal fragmentation: 5 bytes
 External fragmentation: 22.1%
-$ 
+
+// Total Free = 100 (from 0x174) + 352 (from 0x2A0) = 452.
+// Largest Free Block = 352.
+// Ext Frag % = 1 - (352 / 452) = 1 - 0.778 = 0.221 (22.1%). Calculation is precise.

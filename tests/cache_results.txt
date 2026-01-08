@@ -1,32 +1,73 @@
+// is used to add comments to explain the output and verify correctness.
+
 [RAM] Initialized: 4096 bytes.
 [L1] Init: 1024B, Block: 32B, Assoc: 1 (Latency: 1 cycles)
 [L2] Init: 4096B, Block: 32B, Assoc: 2 (Latency: 10 cycles)
-$ read 0x100
-$ read 0x100
-$ cache_stats
 
+$ read 0x100
+// COLD MISS: 0x100 is not in L1 or L2. Fetched from RAM.
+// Latency = 1 (L1) + 10 (L2) + 100 (RAM) = 111 cycles.
+
+$ read 0x100
+// L1 HIT: 0x100 is now in L1 from the previous fetch.
+// Latency = 1 cycle.
+
+$ cache_stats
 --- Cache Statistics ---
 L1 Stats: Hits=1 Misses=1 Rate=50.00%
 L2 Stats: Hits=0 Misses=1 Rate=0.00%
+// CHECK: L1 hit rate 50% (1/2) is correct.
+// L2 only saw the first request (miss); the second request stopped at L1.
+
 --- Performance Metrics ---
 Total Requests: 2
 Total Cycles Spent: 112
 Avg Memory Access Time (AMAT): 56.00 cycles
 ------------------------
+// AMAT CHECK: (111 cycles + 1 cycle) / 2 requests = 56.0 cycles.
+
 $ cache_config 1 64 32 2
 [L1] Init: 64B, Block: 32B, Assoc: 2 (Latency: 1 cycles)
-$ read 0x00
-$ read 0x20
-$ read 0x40
-$ read 0x00
-$ cache_stats
+// RECONFIGURATION: L1 is resized to be very small (64 bytes).
+// Configuration: Block size 32B. Assoc 2. Total sets = 64 / (32*2) = 1 Set.
+// Note: Reconfiguring L1 resets its specific hit/miss counters to 0.
 
+$ read 0x00
+// L1 MISS (Capacity): Cache is empty. 0x00 installed in Set 0, Way 0.
+// L2 MISS: Fetched from RAM.
+
+$ read 0x20
+// L1 MISS (Capacity): 0x20 maps to Set 0. Installed in Way 1.
+// L1 is now FULL [Way 0: 0x00, Way 1: 0x20].
+// L2 MISS: Fetched from RAM.
+
+$ read 0x40
+// L1 MISS (Conflict/Capacity): 0x40 maps to Set 0. Cache is full.
+// FIFO Policy evicts the oldest block (Way 0 -> 0x00).
+// 0x40 replaces 0x00. L1 now holds [0x40, 0x20].
+// L2 MISS: Fetched from RAM.
+
+$ read 0x00
+// L1 MISS: 0x00 was just evicted! This proves the cache size limit worked.
+// L2 HIT: 0x00 was still preserved in the larger L2 cache.
+// Latency = 1 (L1) + 10 (L2) = 11 cycles.
+
+$ cache_stats
 --- Cache Statistics ---
 L1 Stats: Hits=0 Misses=4 Rate=0.00%
 L2 Stats: Hits=1 Misses=4 Rate=20.00%
+// L1 CHECK: 4 requests (0x00, 0x20, 0x40, 0x00) were all misses.
+// L2 CHECK: Cumulative stats. 1 old miss + 3 new misses = 4 Misses.
+// 1 Hit (the final read of 0x00). Total 5 accesses. Rate 1/5 = 20%.
+
 --- Performance Metrics ---
 Total Requests: 6
 Total Cycles Spent: 456
 Avg Memory Access Time (AMAT): 76.00 cycles
 ------------------------
-$      
+
+// AMAT CHECK:
+// Previous Total: 112 cycles.
+// New Requests: 3 RAM fetches (3*111=333) + 1 L2 Hit (11) = 344.
+// Total: 112 + 344 = 456 cycles.
+// Average: 456 / 6 = 76.0 cycles. Calculation is exact.

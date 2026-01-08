@@ -63,13 +63,15 @@ make
 ```
 - To run with test scripts:
 
-(Physical Memory)
+(Linux/MacOS)
 ```powershell
 ./bin/memsim < tests/physicalmemory_test.txt
-```
-(Cache)
-```powershell
 ./bin/memsim < tests/cache_test.txt
+```
+(Windows)
+```powershell
+Get-Content tests\physicalmemory_test.txt | .\bin\memsim.exe
+Get-Content tests\cache_test.txt | .\bin\memsim.exe
 ```
 ### Run manually
 To run the simulator in interactive mode

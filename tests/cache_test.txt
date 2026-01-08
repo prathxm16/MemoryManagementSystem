@@ -1,0 +1,9 @@
+read 0x100
+read 0x100
+cache_stats
+cache_config 1 64 32 2
+read 0x00
+read 0x20
+read 0x40
+read 0x00
+cache_stats

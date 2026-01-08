@@ -1,4 +1,4 @@
-# System Simulator: Memory & Cache
+# Design and Implementation of Memory Management Simulator
 
 A C++ simulation of a computer system's physical memory management and cache hierarchy. This project demonstrates core operating system concepts including contiguous memory allocation, fragmentation handling, and multi-level cache coherence.
 
